@@ -1,41 +1,77 @@
 import { useEffect, useMemo, useState } from "react";
 
-const initialGoals = [
-  { title: "Solve 100 Easy Problems", total: 100, difficulty: "Easy" },
-  { title: "Solve 75 Medium Problems", total: 75, difficulty: "Medium" },
-  { title: "Solve 25 Hard Problems", total: 25, difficulty: "Hard" },
-];
-
-const defaultProblems = [
-  {
-    name: "Two Sum",
-    difficulty: "Easy",
-    date: "3/20/2026",
-    tags: ["Array", "Hash Table"],
-  },
-  {
-    name: "Add Two Numbers",
-    difficulty: "Medium",
-    date: "3/19/2026",
-    tags: ["Linked List", "Math"],
-  },
-  {
-    name: "Median of Two Sorted Arrays",
-    difficulty: "Hard",
-    date: "3/18/2026",
-    tags: ["Binary Search", "Array"],
-  },
-];
-
 export default function LeetCodeTracker() {
+  const STORAGE_KEY = "leetcode-problems";
+  const USER_KEY = "leetcode-user";
+
   const [problems, setProblems] = useState(() => {
-    const saved = localStorage.getItem("leetcode-problems");
-    return saved ? JSON.parse(saved) : defaultProblems;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch (error) {
+      console.error("Failed to load problems:", error);
+      return [];
+    }
+  });
+
+  const [user, setUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem("leetcode-user");
+      return saved ? JSON.parse(saved) : null;
+    } catch (error) {
+      console.error("Failed to load user:", error);
+      return null;
+    }
   });
 
   useEffect(() => {
-    localStorage.setItem("leetcode-problems", JSON.stringify(problems));
+    if (!user) {
+      const name = prompt("What’s your name?");
+      if (!name) return;
+
+      const easy = Number(prompt("Goal for Easy problems?") || 100);
+      const medium = Number(prompt("Goal for Medium problems?") || 75);
+      const hard = Number(prompt("Goal for Hard problems?") || 25);
+
+      const newUser = {
+        name,
+        goals: {
+          Easy: easy,
+          Medium: medium,
+          Hard: hard,
+        },
+      };
+
+      setUser(newUser);
+      localStorage.setItem("leetcode-user", JSON.stringify(newUser));
+    }
+  }, [user]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(problems));
+    } catch (error) {
+      console.error("Failed to save problems:", error);
+    }
   }, [problems]);
+
+  const goalsData = [
+    {
+      title: "Solve Easy Problems",
+      total: user?.goals?.Easy || 100,
+      difficulty: "Easy",
+    },
+    {
+      title: "Solve Medium Problems",
+      total: user?.goals?.Medium || 75,
+      difficulty: "Medium",
+    },
+    {
+      title: "Solve Hard Problems",
+      total: user?.goals?.Hard || 25,
+      difficulty: "Hard",
+    },
+  ];
 
   const counts = useMemo(() => {
     let easy = 0;
@@ -58,10 +94,9 @@ export default function LeetCodeTracker() {
     };
   }, [problems]);
 
-  const calculateStreak = () => {
-    if (problems.length === 0) return 0;
-
-    const solvedDates = new Set(problems.map((p) => p.date));
+const calculateStreak = () => {
+  if (problems.length === 0) return 0;
+  const solvedDates = new Set(problems.map((p) => p.date));
 
     let streak = 0;
     const current = new Date();
@@ -82,12 +117,14 @@ export default function LeetCodeTracker() {
 
   const streak = calculateStreak();
 
+  const totalGoal = goalsData.reduce((sum, goal) => sum + goal.total, 0);
+
   const progressPercent = Math.min(
-    Math.round((counts.total / 300) * 100),
+    Math.round((counts.total / totalGoal) * 100),
     100
   );
 
-  const goals = initialGoals.map((goal) => {
+  const goals = goalsData.map((goal) => {
     let current = 0;
 
     if (goal.difficulty === "Easy") current = counts.easy;
@@ -126,7 +163,7 @@ export default function LeetCodeTracker() {
     {
       title: "Progress",
       value: `${progressPercent}%`,
-      subtitle: "Towards 300 problems",
+      subtitle: `Towards ${totalGoal} problems`,
       icon: "",
       iconClass: "purple",
     },
@@ -163,19 +200,18 @@ export default function LeetCodeTracker() {
     const newProblem = {
       name: name.trim(),
       difficulty: formattedDifficulty,
-      date: new Date().toLocaleDateString(),
+      date: new Date().toISOString().split("T")[0],
       tags: tags.length > 0 ? tags : ["User Added"],
     };
 
-    setProblems([newProblem, ...problems]);
+    setProblems((prev) => [newProblem, ...prev]);
   };
 
   const deleteProblem = (indexToDelete) => {
-    const updatedProblems = problems.filter(
-      (_, index) => index !== indexToDelete
-    );
-    setProblems(updatedProblems);
-  };
+     setProblems((prev) =>
+    prev.filter((_, index) => index !== indexToDelete)
+  );
+};
 
   return (
     <div className="page">
@@ -188,7 +224,9 @@ export default function LeetCodeTracker() {
               <div className="logo-box">&lt;/&gt;</div>
 
               <div>
-                <h1 className="main-title">LeetCode Tracker</h1>
+                <h1 className="main-title">
+                  {user ? `${user.name}'s LeetCode Tracker` : "LeetCode Tracker"}
+                </h1>
                 <p className="subtitle">Track your coding journey</p>
               </div>
             </div>
@@ -262,6 +300,12 @@ export default function LeetCodeTracker() {
 
         <section className="section">
           <h2 className="section-title recent-title">Recent Problems</h2>
+
+          {problems.length === 0 && (
+            <p className="empty-text">
+            No problems yet. Add one to start your streak 🔥
+            </p>
+          )}
 
           <div className="problems-list">
             {problems.map((problem, index) => (
