@@ -61,27 +61,17 @@ export default function LeetCodeTracker() {
   const calculateStreak = () => {
     if (problems.length === 0) return 0;
 
-    const uniqueDateStrings = [
-      ...new Set(problems.map((problem) => new Date(problem.date).toDateString())),
-    ];
-
-    const sortedDates = uniqueDateStrings
-      .map((dateString) => new Date(dateString))
-      .sort((a, b) => b - a);
+    const solvedDates = new Set(problems.map((p) => p.date));
 
     let streak = 0;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const current = new Date();
 
-    for (let i = 0; i < sortedDates.length; i++) {
-      const checkDate = new Date(today);
-      checkDate.setDate(today.getDate() - i);
+    while (true) {
+      const dateString = current.toISOString().split("T")[0];
 
-      const problemDate = new Date(sortedDates[i]);
-      problemDate.setHours(0, 0, 0, 0);
-
-      if (problemDate.getTime() === checkDate.getTime()) {
-        streak += 1;
+      if (solvedDates.has(dateString)) {
+        streak++;
+        current.setDate(current.getDate() - 1);
       } else {
         break;
       }
